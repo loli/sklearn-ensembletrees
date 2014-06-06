@@ -51,7 +51,8 @@ from ..feature_selection.from_model import _LearntSelectorMixin
 from ..metrics import r2_score
 from ..preprocessing import OneHotEncoder
 from ..tree import (DecisionTreeClassifier, DecisionTreeRegressor,
-                    ExtraTreeClassifier, ExtraTreeRegressor)
+                    ExtraTreeClassifier, ExtraTreeRegressor,
+                    MixedTreeClassifier, MixedTreeRegressor)
 from ..tree._tree import DTYPE, DOUBLE
 from ..utils import array2d, check_random_state, check_arrays, safe_asarray
 from ..utils.validation import DataConversionWarning
@@ -60,6 +61,8 @@ from .base import BaseEnsemble, _partition_estimators
 
 __all__ = ["RandomForestClassifier",
            "RandomForestRegressor",
+           "MixedForestClassifier",
+           "MixedForestRegressor",
            "ExtraTreesClassifier",
            "ExtraTreesRegressor"]
 
@@ -1231,6 +1234,230 @@ class ExtraTreesRegressor(ForestRegressor):
                  "This parameter will be removed in 0.16.",
                  DeprecationWarning)
 
+
+class MixedForestClassifier(ForestClassifier):
+    """A forest classifier using mixed types of nodes.
+
+    BlahBlah.
+
+    Parameters
+    ----------
+    n_estimators : integer, optional (default=10)
+        The number of trees in the forest.
+
+    criterion : string, optional (default="gini")
+        The function to measure the quality of a split. Supported criteria are
+        "gini" for the Gini impurity and "entropy" for the information gain.
+        Note: this parameter is tree-specific.
+        
+    splitter: string, optional (default="alternatingnode")
+        The function to decide on either best or random splitter for each node
+        of the tree during construction.
+          - If "alternatingnode" the splitter alternates between best and
+            random nodes.
+          - If "randomnode" the splitter randomly selects the splitter for
+            each node according to a fixed ratio.
+          - If "adaptivenode" the splitter prefers best split nodes, but choses
+            random split nodes if the information gain of the best split falls
+            under a fixed threshold.
+          - If "stacknode", the splitter decides between random and best split
+            nodes according to some pattern depending on the tree depth.
+        Note: this parameter is tree-specific.
+        
+    max_features : int, float, string or None, optional (default="auto")
+        The number of features to consider when looking for the best split:
+          - If int, then consider `max_features` features at each split.
+          - If float, then `max_features` is a percentage and
+            `int(max_features * n_features)` features are considered at each
+            split.
+          - If "auto", then `max_features=sqrt(n_features)`.
+          - If "sqrt", then `max_features=sqrt(n_features)`.
+          - If "log2", then `max_features=log2(n_features)`.
+          - If None, then `max_features=n_features`.
+
+        Note: the search for a split does not stop until at least one
+        valid partition of the node samples is found, even if it requires to
+        effectively inspect more than ``max_features`` features.
+        Note: this parameter is tree-specific.
+
+    max_depth : integer or None, optional (default=None)
+        The maximum depth of the tree. If None, then nodes are expanded until
+        all leaves are pure or until all leaves contain less than
+        min_samples_split samples.
+        Ignored if ``max_samples_leaf`` is not None.
+        Note: this parameter is tree-specific.
+
+    min_samples_split : integer, optional (default=2)
+        The minimum number of samples required to split an internal node.
+        Note: this parameter is tree-specific.
+
+    min_samples_leaf : integer, optional (default=1)
+        The minimum number of samples in newly created leaves.  A split is
+        discarded if after the split, one of the leaves would contain less then
+        ``min_samples_leaf`` samples.
+        Note: this parameter is tree-specific.
+
+    max_leaf_nodes : int or None, optional (default=None)
+        Grow trees with ``max_leaf_nodes`` in best-first fashion.
+        Best nodes are defined as relative reduction in impurity.
+        If None then unlimited number of leaf nodes.
+        If not None then ``max_depth`` will be ignored.
+        Note: this parameter is tree-specific.
+
+    bootstrap : boolean, optional (default=True)
+        Whether bootstrap samples are used when building trees.
+
+    oob_score : bool
+        Whether to use out-of-bag samples to estimate
+        the generalization error.
+
+    n_jobs : integer, optional (default=1)
+        The number of jobs to run in parallel for both `fit` and `predict`.
+        If -1, then the number of jobs is set to the number of cores.
+
+    random_state : int, RandomState instance or None, optional (default=None)
+        If int, random_state is the seed used by the random number generator;
+        If RandomState instance, random_state is the random number generator;
+        If None, the random number generator is the RandomState instance used
+        by `np.random`.
+
+    verbose : int, optional (default=0)
+        Controls the verbosity of the tree building process.
+
+    Attributes
+    ----------
+    `estimators_`: list of DecisionTreeClassifier
+        The collection of fitted sub-estimators.
+
+    `classes_`: array of shape = [n_classes] or a list of such arrays
+        The classes labels (single output problem), or a list of arrays of
+        class labels (multi-output problem).
+
+    `n_classes_`: int or list
+        The number of classes (single output problem), or a list containing the
+        number of classes for each output (multi-output problem).
+
+    `feature_importances_` : array of shape = [n_features]
+        The feature importances (the higher, the more important the feature).
+
+    `oob_score_` : float
+        Score of the training dataset obtained using an out-of-bag estimate.
+
+    `oob_decision_function_` : array of shape = [n_samples, n_classes]
+        Decision function computed with out-of-bag estimate on the training
+        set. If n_estimators is small it might be possible that a data point
+        was never left out during the bootstrap. In this case,
+        `oob_decision_function_` might contain NaN.
+
+    References
+    ----------
+
+    .. [1] L. Breiman, "Random Forests", Machine Learning, 45(1), 5-32, 2001.
+
+    See also
+    --------
+    DecisionTreeClassifier, ExtraTreesClassifier
+    """
+    def __init__(self,
+                 n_estimators=10,
+                 criterion="gini",
+                 splitter="alternatingnode",
+                 max_depth=None,
+                 min_samples_split=2,
+                 min_samples_leaf=1,
+                 max_features="auto",
+                 max_leaf_nodes=None,
+                 bootstrap=True,
+                 oob_score=False,
+                 n_jobs=1,
+                 random_state=None,
+                 verbose=0,
+                 min_density=None,
+                 compute_importances=None):
+        super(MixedForestClassifier, self).__init__(
+            base_estimator=MixedTreeClassifier(),
+            n_estimators=n_estimators,
+            estimator_params=("criterion", "max_depth", "min_samples_split",
+                              "min_samples_leaf", "max_features",
+                              "max_leaf_nodes", "random_state",
+                              "splitter"),
+            bootstrap=bootstrap,
+            oob_score=oob_score,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            verbose=verbose)
+
+        self.criterion = criterion
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.min_samples_leaf = min_samples_leaf
+        self.max_features = max_features
+        self.max_leaf_nodes = max_leaf_nodes
+        self.splitter = splitter
+
+        if min_density is not None:
+            warn("The min_density parameter is deprecated as of version 0.14 "
+                 "and will be removed in 0.16.", DeprecationWarning)
+
+        if compute_importances is not None:
+            warn("Setting compute_importances is no longer required as "
+                 "version 0.14. Variable importances are now computed on the "
+                 "fly when accessing the feature_importances_ attribute. "
+                 "This parameter will be removed in 0.16.",
+                 DeprecationWarning)
+
+class MixedForestRegressor(ForestRegressor):
+    """
+    !TODO: Write documentation.
+    """
+    def __init__(self,
+                 n_estimators=10,
+                 criterion="mse",
+                 splitter="alternatingnode",
+                 max_depth=None,
+                 min_samples_split=2,
+                 min_samples_leaf=1,
+                 max_features="auto",
+                 max_leaf_nodes=None,
+                 bootstrap=False,
+                 oob_score=False,
+                 n_jobs=1,
+                 random_state=None,
+                 verbose=0,
+                 min_density=None,
+                 compute_importances=None):
+        super(MixedForestRegressor, self).__init__(
+            base_estimator=MixedTreeRegressor(),
+            n_estimators=n_estimators,
+            estimator_params=("criterion", "max_depth", "min_samples_split",
+                              "min_samples_leaf", "max_features",
+                              "max_leaf_nodes", "random_state",
+                              "splitter"),
+            bootstrap=bootstrap,
+            oob_score=oob_score,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            verbose=verbose)
+
+        self.criterion = criterion
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.min_samples_leaf = min_samples_leaf
+        self.max_features = max_features
+        self.max_leaf_nodes = max_leaf_nodes
+        self.splitter = splitter
+
+        if min_density is not None:
+            warn("The min_density parameter is deprecated as of version 0.14 "
+                 "and will be removed in 0.16.", DeprecationWarning)
+
+        if compute_importances is not None:
+            warn("Setting compute_importances is no longer required as "
+                 "version 0.14. Variable importances are now computed on the "
+                 "fly when accessing the feature_importances_ attribute. "
+                 "This parameter will be removed in 0.16.",
+                 DeprecationWarning)
+    
 
 class RandomTreesEmbedding(BaseForest):
     """An ensemble of totally random trees.

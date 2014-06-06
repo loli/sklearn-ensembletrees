@@ -34,7 +34,9 @@ from . import _tree
 __all__ = ["DecisionTreeClassifier",
            "DecisionTreeRegressor",
            "ExtraTreeClassifier",
-           "ExtraTreeRegressor"]
+           "ExtraTreeRegressor",
+           "MixedTreeClassifier",
+           "MixedTreeRegressor"]
 
 
 # =============================================================================
@@ -48,7 +50,11 @@ CRITERIA_CLF = {"gini": _tree.Gini, "entropy": _tree.Entropy}
 CRITERIA_REG = {"mse": _tree.MSE, "friedman_mse": _tree.FriedmanMSE}
 SPLITTERS = {"best": _tree.BestSplitter,
              "presort-best": _tree.PresortBestSplitter,
-             "random": _tree.RandomSplitter}
+             "random": _tree.RandomSplitter,
+             "alternatingnode": _tree.AlternatingNodeSplitter,
+             "randomnode": _tree.RandomNodeSplitter,
+             "adaptivenode": _tree.AdaptiveNodeSplitter,
+             "stacknode": _tree.StackNodeSplitter}
 
 
 # =============================================================================
@@ -786,6 +792,91 @@ class ExtraTreeRegressor(DecisionTreeRegressor):
                  compute_importances=None,
                  max_leaf_nodes=None):
         super(ExtraTreeRegressor, self).__init__(
+            criterion=criterion,
+            splitter=splitter,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            max_features=max_features,
+            max_leaf_nodes=max_leaf_nodes,
+            random_state=random_state)
+
+        if min_density is not None:
+            warn("The min_density parameter is deprecated as of version 0.14 "
+                 "and will be removed in 0.16.", DeprecationWarning)
+
+        if compute_importances is not None:
+            warn("Setting compute_importances is no longer required as "
+                 "version 0.14. Variable importances are now computed on the "
+                 "fly when accessing the feature_importances_ attribute. "
+                 "This parameter will be removed in 0.16.",
+                 DeprecationWarning)
+
+
+class MixedTreeClassifier(DecisionTreeClassifier):
+    """An tree classifier with mixed types of nodes.
+
+    !TODO: BlahBlah
+
+    Warning: Mixed trees should only be used within ensemble methods.
+
+    See also
+    --------
+    DecisionTreeClassifier, ExtraTreeClassifier
+
+    References
+    ----------
+
+    .. [1] !TODO: blahblah
+    """
+    def __init__(self,
+                 criterion="gini",
+                 splitter="alternating",
+                 max_depth=None,
+                 min_samples_split=2,
+                 min_samples_leaf=1,
+                 max_features="auto",
+                 random_state=None,
+                 min_density=None,
+                 compute_importances=None,
+                 max_leaf_nodes=None):
+        super(MixedTreeClassifier, self).__init__(
+            criterion=criterion,
+            splitter=splitter,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            max_features=max_features,
+            max_leaf_nodes=max_leaf_nodes,
+            random_state=random_state)
+
+        if min_density is not None:
+            warn("The min_density parameter is deprecated as of version 0.14 "
+                 "and will be removed in 0.16.", DeprecationWarning)
+
+        if compute_importances is not None:
+            warn("Setting compute_importances is no longer required as "
+                 "version 0.14. Variable importances are now computed on the "
+                 "fly when accessing the feature_importances_ attribute. "
+                 "This parameter will be removed in 0.16.",
+                 DeprecationWarning)
+
+class MixedTreeRegressor(DecisionTreeRegressor):
+    """
+    !TODO: Write documentation.
+    """
+    def __init__(self,
+                 criterion="mse",
+                 splitter="alternating",
+                 max_depth=None,
+                 min_samples_split=2,
+                 min_samples_leaf=1,
+                 max_features="auto",
+                 random_state=None,
+                 min_density=None,
+                 compute_importances=None,
+                 max_leaf_nodes=None):
+        super(MixedTreeRegressor, self).__init__(
             criterion=criterion,
             splitter=splitter,
             max_depth=max_depth,
