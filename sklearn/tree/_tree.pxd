@@ -87,6 +87,7 @@ cdef class Splitter:
     cdef DTYPE_t* feature_values         # temp. array holding feature values
     cdef SIZE_t start                    # Start position for the current node
     cdef SIZE_t end                      # End position for the current node
+    cdef SIZE_t depth					 # Depth of current node
 
     cdef DTYPE_t* X
     cdef SIZE_t X_sample_stride
@@ -114,7 +115,7 @@ cdef class Splitter:
     # Methods
     cdef void init(self, np.ndarray X, np.ndarray y, DOUBLE_t* sample_weight)
 
-    cdef void node_reset(self, SIZE_t start, SIZE_t end,
+    cdef void node_reset(self, SIZE_t start, SIZE_t end, SIZE_t depth,
                          double* weighted_n_node_samples) nogil
 
     cdef void node_split(self,
@@ -128,9 +129,37 @@ cdef class Splitter:
                          SIZE_t* n_constant_features) nogil
 
     cdef void node_value(self, double* dest) nogil
+    
+    #!TODO: Try to get this out from here and into the BaseNodeSplitter
+    cdef void node_type(self, double* dest) nogil
 
     cdef double node_impurity(self) nogil
 
+cdef class BaseNodeSplitter(Splitter):
+    cdef int last_used_split_type
+    cdef double informative_double
+    cdef void node_split_random(self,
+                         double impurity,   # Impurity of the node
+                         SIZE_t* pos,       # Set to >= end if the node is a leaf
+                         SIZE_t* feature,
+                         double* threshold,
+                         double* impurity_left,
+                         double* impurity_right,
+                         double* impurity_improvement,
+                         SIZE_t* n_constant_features) nogil
+    cdef void node_split_best(self,
+                         double impurity,   # Impurity of the node
+                         SIZE_t* pos,       # Set to >= end if the node is a leaf
+                         SIZE_t* feature,
+                         double* threshold,
+                         double* impurity_left,
+                         double* impurity_right,
+                         double* impurity_improvement,
+                         SIZE_t* n_constant_features) nogil    
+
+cdef class AlternatingNodeSplitter(BaseNodeSplitter):
+    cdef int state
+    
 
 # =============================================================================
 # Tree
